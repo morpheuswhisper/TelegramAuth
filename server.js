@@ -1,18 +1,19 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const fetch = require('node-fetch');
-require('dotenv').config();  // Загружаем переменные окружения
 
 const app = express();
 app.use(bodyParser.json());
 
 // Получаем токен бота из переменной окружения
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;  // Используем токен из .env файла
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
 // Функция отправки сообщений
 const sendMessage = (chatId, text) => {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const payload = { chat_id: chatId, text };
+
+    console.log('Отправка сообщения:', payload);  // Логируем запрос
 
     fetch(url, {
         method: 'POST',
@@ -21,9 +22,10 @@ const sendMessage = (chatId, text) => {
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Ответ от Telegram:', data);
         if (!data.ok) {
-            console.error('Ошибка при отправке сообщения в Telegram:', data);
+            console.error('Ошибка при отправке сообщения:', data);
+        } else {
+            console.log('Сообщение успешно отправлено');
         }
     })
     .catch(err => console.error('Ошибка при отправке сообщения:', err));
@@ -34,25 +36,21 @@ app.post('/webhook', (req, res) => {
     const data = req.body;
     console.log('Получены данные от Telegram:', JSON.stringify(data, null, 2));
 
-    try {
-        if (data.message) {
-            const chatId = data.message.chat.id;
-            const text = data.message.text;
-            console.log('Chat ID:', chatId);  // Логируем chat_id
+    if (data.message) {
+        const chatId = data.message.chat.id;
+        const text = data.message.text;
 
-            // Логика обработки сообщений
-            if (text === '/start') {
-                sendMessage(chatId, 'Добро пожаловать в нашего бота!');
-            } else {
-                sendMessage(chatId, `Вы сказали: "${text}"`);
-            }
+        console.log('Chat ID:', chatId);  // Логируем chat_id
+
+        // Логика обработки сообщений
+        if (text === '/start') {
+            sendMessage(chatId, 'Добро пожаловать в нашего бота!');
+        } else {
+            sendMessage(chatId, `Вы сказали: "${text}"`);
         }
-
-        res.status(200).send('OK'); // Telegram ожидает ответ "OK"
-    } catch (error) {
-        console.error('Ошибка при обработке запроса:', error);
-        res.status(500).send('Ошибка сервера');
     }
+
+    res.send('OK'); // Telegram ожидает ответ "OK"
 });
 
 // Запускаем сервер
