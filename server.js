@@ -1,16 +1,17 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const fetch = require('node-fetch'); // Если нужна отправка запросов
 
 const app = express();
 app.use(bodyParser.json());
 
-// Получаем токен бота из файла .env
+require('dotenv').config();
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
-// Обрабатываем запросы от Telegram
+// Обработка запросов от Telegram
 app.post('/webhook', (req, res) => {
     const data = req.body;
-    console.log('Получены данные от Telegram:', data);
+    console.log('Получены данные:', data);
 
     if (data.message) {
         const chatId = data.message.chat.id;
@@ -18,10 +19,10 @@ app.post('/webhook', (req, res) => {
         sendMessage(chatId, text);
     }
 
-    res.send('OK');
+    res.sendStatus(200);
 });
 
-// Функция отправки сообщений
+// Функция отправки сообщения
 const sendMessage = (chatId, text) => {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const payload = { chat_id: chatId, text };
@@ -33,6 +34,5 @@ const sendMessage = (chatId, text) => {
     }).catch(err => console.error(err));
 };
 
-// Запускаем сервер
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
