@@ -13,7 +13,7 @@ const sendMessage = (chatId, text) => {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const payload = { chat_id: chatId, text };
 
-    console.log('Отправка сообщения:', payload);  // Логируем запрос
+    console.log('Отправка сообщения:', payload);  // Логируем данные, которые отправляем
 
     fetch(url, {
         method: 'POST',
@@ -22,6 +22,7 @@ const sendMessage = (chatId, text) => {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('Ответ от Telegram:', data);  // Логируем ответ от Telegram
         if (!data.ok) {
             console.error('Ошибка при отправке сообщения:', data);
         } else {
@@ -34,13 +35,14 @@ const sendMessage = (chatId, text) => {
 // Обрабатываем запросы от Telegram
 app.post('/webhook', (req, res) => {
     const data = req.body;
-    console.log('Получены данные от Telegram:', JSON.stringify(data, null, 2));
+    console.log('Получены данные от Telegram:', JSON.stringify(data, null, 2));  // Логируем полученные данные
 
     if (data.message) {
         const chatId = data.message.chat.id;
         const text = data.message.text;
 
-        console.log('Chat ID:', chatId);  // Логируем chat_id
+        console.log('Получено сообщение от пользователя:', text);  // Логируем текст сообщения
+        console.log('chatId:', chatId);  // Логируем chatId
 
         // Логика обработки сообщений
         if (text === '/start') {
@@ -48,12 +50,15 @@ app.post('/webhook', (req, res) => {
         } else {
             sendMessage(chatId, `Вы сказали: "${text}"`);
         }
+    } else {
+        console.log('В сообщении нет данных о сообщении');
     }
 
-    res.send('OK'); // Telegram ожидает ответ "OK"
+    res.send('OK');  // Telegram ожидает ответ "OK"
 });
 
 // Запускаем сервер
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Сервер запущен на порту ${PORT}`));
-
+app.listen(PORT, () => {
+    console.log(`Сервер запущен на порту ${PORT}`);
+});
