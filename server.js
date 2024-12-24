@@ -17,28 +17,40 @@ const sendMessage = (chatId, text) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-    }).catch(err => console.error('Ошибка при отправке сообщения:', err));
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Ответ от Telegram:', data); // Логируем ответ от Telegram
+        if (!data.ok) {
+            console.error('Ошибка при отправке сообщения в Telegram:', data);
+        }
+    })
+    .catch(err => console.error('Ошибка при отправке сообщения:', err));
 };
 
 // Обрабатываем запросы от Telegram
 app.post('/webhook', (req, res) => {
     const data = req.body;
-
     console.log('Получены данные от Telegram:', JSON.stringify(data, null, 2));
 
-    if (data.message) {
-        const chatId = data.message.chat.id;
-        const text = data.message.text;
+    try {
+        if (data.message) {
+            const chatId = data.message.chat.id;
+            const text = data.message.text;
 
-        // Логика обработки сообщений
-        if (text === '/start') {
-            sendMessage(chatId, 'Добро пожаловать в нашего бота!');
-        } else {
-            sendMessage(chatId, `Вы сказали: "${text}"`);
+            // Логика обработки сообщений
+            if (text === '/start') {
+                sendMessage(chatId, 'Добро пожаловать в нашего бота!');
+            } else {
+                sendMessage(chatId, `Вы сказали: "${text}"`);
+            }
         }
-    }
 
-    res.send('OK'); // Telegram ожидает ответ "OK"
+        res.status(200).send('OK'); // Telegram ожидает ответ "OK"
+    } catch (error) {
+        console.error('Ошибка при обработке запроса:', error);
+        res.status(500).send('Ошибка сервера');
+    }
 });
 
 // Запускаем сервер
