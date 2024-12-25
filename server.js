@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fetch = require('node-fetch');
 const crypto = require('crypto');
+const path = require('path');
 
 const app = express();
 app.use(bodyParser.json());
@@ -12,10 +13,17 @@ const TELEGRAM_BOT_TOKEN = '7821768437:AAEJf-c-O7AwwuCbQRh8I7QEOchx4pNT3f8';
 // Функция проверки подписи Telegram
 const checkTelegramAuth = (data, hash) => {
     const secretKey = crypto.createHash('sha256').update(TELEGRAM_BOT_TOKEN).digest();
-    const sortedData = Object.keys(data).sort().map(key => `${key}=${data[key]}`).join('\n');
+    const sortedData = Object.keys(data)
+        .filter(key => key !== 'hash')
+        .sort()
+        .map(key => `${key}=${data[key]}`)
+        .join('\n');
     const hmac = crypto.createHmac('sha256', secretKey).update(sortedData).digest('hex');
     return hmac === hash;
 };
+
+// Обслуживание статических файлов (например, auth.html)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Маршрут для обработки авторизации
 app.get('/auth', (req, res) => {
