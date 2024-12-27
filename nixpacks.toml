@@ -1,2 +1,5 @@
 [phases.setup]
 apt_packages = ["build-essential", "python3"]
+
+[phases.build]
+cmd = "npm install sqlite3 --build-from-source"
