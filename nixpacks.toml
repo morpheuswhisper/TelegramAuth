@@ -1,2 +1,2 @@
 [phases.setup]
-apt_packages = ["build-essential"]
+apt_packages = ["build-essential", "python3"]
