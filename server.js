@@ -3,7 +3,7 @@ const bodyParser = require('body-parser');
 const fetch = require('node-fetch');
 const crypto = require('crypto');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose(); // Подключаем SQLite
+const Database = require('better-sqlite3'); // Подключаем better-sqlite3
 
 const app = express();
 app.use(bodyParser.json());
@@ -12,31 +12,17 @@ app.use(bodyParser.json());
 const TELEGRAM_BOT_TOKEN = '7821768437:AAEJf-c-O7AwwuCbQRh8I7QEOchx4pNT3f8';
 
 // Инициализация базы данных
-const db = new sqlite3.Database('./users.db', (err) => {
-    if (err) {
-        console.error('Ошибка подключения к базе данных:', err.message);
-    } else {
-        console.log('Подключено к базе данных SQLite.');
-    }
-});
+const db = new Database('./users.db', { verbose: console.log });
 
 // Создаём таблицу для пользователей
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            telegram_id TEXT UNIQUE NOT NULL,
-            username TEXT NOT NULL,
-            registration_date TEXT NOT NULL
-        )
-    `, (err) => {
-        if (err) {
-            console.error('Ошибка создания таблицы:', err.message);
-        } else {
-            console.log('Таблица пользователей готова.');
-        }
-    });
-});
+db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        telegram_id TEXT UNIQUE NOT NULL,
+        username TEXT NOT NULL,
+        registration_date TEXT NOT NULL
+    )
+`);
 
 // Функция отправки сообщений
 const sendMessage = (chatId, text) => {
@@ -59,23 +45,11 @@ const sendMessage = (chatId, text) => {
         .catch(err => console.error('Ошибка запроса:', err));
 };
 
-// Функция проверки подписи Telegram
-const checkTelegramAuth = (data, hash) => {
-    const secretKey = crypto.createHash('sha256').update(TELEGRAM_BOT_TOKEN).digest();
-    const sortedData = Object.keys(data)
-        .filter(key => key !== 'hash')
-        .sort()
-        .map(key => `${key}=${data[key]}`)
-        .join('\n');
-    const hmac = crypto.createHmac('sha256', secretKey).update(sortedData).digest('hex');
-    return hmac === hash;
-};
-
 // Маршрут для сохранения никнейма
 app.post('/set-nickname', (req, res) => {
     const { telegram_id, username } = req.body;
 
-    console.log('Полученные данные для сохранения:', { telegram_id, username }); // Логирование данных
+    console.log('Полученные данные для сохранения:', { telegram_id, username });
 
     // Проверка: ник должен содержать только буквы и цифры, длина от 3 до 10 символов
     const nicknameRegex = /^[a-zA-Zа-яА-Я0-9]{3,10}$/;
@@ -89,18 +63,18 @@ app.post('/set-nickname', (req, res) => {
         return res.status(400).json({ message: 'Никнейм может содержать только буквы и цифры. Длина от 3 до 10 символов.' });
     }
 
-    const query = `INSERT INTO users (telegram_id, username, registration_date) VALUES (?, ?, ?)`;
-    const params = [telegram_id, username, new Date().toISOString()];
-
-    console.log('Параметры для сохранения в базе данных:', params); // Логирование параметров
-
-    db.run(query, params, function (err) {
-        if (err) {
-            console.error('Ошибка сохранения пользователя:', err.message);
-            return res.status(500).json({ message: 'Ошибка сохранения пользователя.' });
-        }
+    try {
+        const query = `
+            INSERT INTO users (telegram_id, username, registration_date)
+            VALUES (?, ?, ?)
+        `;
+        const params = [telegram_id, username, new Date().toISOString()];
+        db.prepare(query).run(params);
         res.status(200).json({ message: 'Никнейм успешно сохранён.' });
-    });
+    } catch (err) {
+        console.error('Ошибка сохранения пользователя:', err.message);
+        res.status(500).json({ message: 'Ошибка сохранения пользователя.' });
+    }
 });
 
 // Запускаем сервер
