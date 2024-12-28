@@ -71,63 +71,19 @@ const checkTelegramAuth = (data, hash) => {
     return hmac === hash;
 };
 
-// Обслуживание статических файлов (например, auth.html)
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Маршрут для обработки авторизации
-app.get('/auth', (req, res) => {
-    const data = req.query;
-
-    console.log('Полученные данные от Telegram:', data);
-
-    if (!data.hash || !checkTelegramAuth(data, data.hash)) {
-        console.error('Неверная подпись данных');
-        return res.status(403).send('Invalid signature');
-    }
-
-    // Проверка, зарегистрирован ли пользователь
-    db.get(`SELECT * FROM users WHERE telegram_id = ?`, [data.id], (err, row) => {
-        if (err) {
-            console.error('Ошибка при поиске пользователя:', err.message);
-            return res.status(500).json({ message: 'Ошибка сервера.' });
-        }
-
-        if (row) {
-            res.json({ message: 'Вы уже авторизованы.', username: row.username });
-        } else {
-            res.json({ message: 'Авторизация успешна. Введите ваш никнейм.', telegram_id: data.id });
-        }
-    });
-});
-
-// Маршрут для Webhook
-app.post('/webhook', (req, res) => {
-    const data = req.body;
-
-    console.log('Получены данные от Telegram:', JSON.stringify(data, null, 2));
-
-    if (data.message) {
-        const chatId = data.message.chat.id;
-        const text = data.message.text;
-
-        console.log(`Получено сообщение: "${text}" от chatId: ${chatId}`);
-
-        if (text === '/start') {
-            sendMessage(chatId, 'Добро пожаловать! Пожалуйста, введите ваш никнейм в игре.');
-        } else {
-            sendMessage(chatId, `Вы сказали: "${text}"`);
-        }
-    }
-
-    res.status(200).send('OK');
-});
-
 // Маршрут для сохранения никнейма
 app.post('/set-nickname', (req, res) => {
     const { telegram_id, username } = req.body;
 
+    console.log('Полученные данные для сохранения:', { telegram_id, username }); // Логирование данных
+
     // Проверка: ник должен содержать только буквы и цифры, длина от 3 до 10 символов
     const nicknameRegex = /^[a-zA-Zа-яА-Я0-9]{3,10}$/;
+
+    if (!telegram_id || !username) {
+        console.error('Ошибка: telegram_id или username отсутствует.');
+        return res.status(400).json({ message: 'Не передан telegram_id или username.' });
+    }
 
     if (!nicknameRegex.test(username)) {
         return res.status(400).json({ message: 'Никнейм может содержать только буквы и цифры. Длина от 3 до 10 символов.' });
@@ -136,29 +92,14 @@ app.post('/set-nickname', (req, res) => {
     const query = `INSERT INTO users (telegram_id, username, registration_date) VALUES (?, ?, ?)`;
     const params = [telegram_id, username, new Date().toISOString()];
 
+    console.log('Параметры для сохранения в базе данных:', params); // Логирование параметров
+
     db.run(query, params, function (err) {
         if (err) {
             console.error('Ошибка сохранения пользователя:', err.message);
             return res.status(500).json({ message: 'Ошибка сохранения пользователя.' });
         }
         res.status(200).json({ message: 'Никнейм успешно сохранён.' });
-    });
-});
-
-// Маршрут для получения информации о пользователе
-app.get('/get-user/:telegram_id', (req, res) => {
-    const telegram_id = req.params.telegram_id;
-
-    db.get(`SELECT * FROM users WHERE telegram_id = ?`, [telegram_id], (err, row) => {
-        if (err) {
-            console.error('Ошибка при поиске пользователя:', err.message);
-        }
-
-        if (row) {
-            res.status(200).json(row);
-        } else {
-            res.status(404).json({ message: 'Пользователь не найден.' });
-        }
     });
 });
 
